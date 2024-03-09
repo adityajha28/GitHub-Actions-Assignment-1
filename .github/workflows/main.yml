@@ -1,0 +1,59 @@
+name: Docker Build and Deploy
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      EC2_INSTANCE_IP: 43.204.233.73
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Build and Push Docker Image
+        uses: actions/docker/cli@v3
+        with:
+          args: build -t nginx01-image .
+        env:
+          DOCKER_BUILDKIT: 1
+
+      - name: Push Docker Image to Registry
+        uses: actions/docker/cli@v3
+        with:
+          args: push nginx01-image
+
+      - name: SSH into EC2 Instance and Pull Docker Image
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.EC2_INSTANCE_IP }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull nginx01-image
+
+      - name: Run Docker Container on EC2 Instance
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.EC2_INSTANCE_IP }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker run -d -p 80:80 --name nginx01 nginx01-image
+
+      - name: Ensure Container Persistence
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.EC2_INSTANCE_IP }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker update --restart always nginx01
+
