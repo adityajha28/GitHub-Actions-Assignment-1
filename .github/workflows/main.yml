@@ -31,5 +31,7 @@ jobs:
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          sudo docker run -d -p 80:80 --restart always ${{ secrets.DOCKER_USERNAME }}/mynginx:latest
+          sudo docker stop nginx-container
+          sudo docker rm nginx-contaienr
+          sudo docker run -d -p 80:80 --restart always --name nginx-container ${{ secrets.DOCKER_USERNAME }}/mynginx:latest
 
